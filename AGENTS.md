@@ -33,7 +33,7 @@ inference-cluster-stack/
 
 First service in compose is vllm (PP=2 via `--pipeline-parallel-size ${PIPELINE_PARALLEL_SIZE}`). All services start with `docker compose up -d`.
 
-## README — 10-step runbook
+## RUNBOOK.md — 10-step runbook
 
 | Step | Title | Notes |
 |---|---|---|
@@ -51,7 +51,7 @@ First service in compose is vllm (PP=2 via `--pipeline-parallel-size ${PIPELINE_
 ## Before editing
 
 - Keep `.env` in `.gitignore` — never commit secrets
-- When editing README, preserve the 10-step numbered structure and checklist format
+- When editing RUNBOOK.md, preserve the 10-step numbered structure and checklist format
 - All env vars referenced in docker-compose.yml must exist in `.env.template`
 - Grafana dashboard ID 25261 (DCGM) is the standard reference
 - Telemetry is disabled via `VLLM_NO_USAGE_STATS=1` and `DO_NOT_TRACK=1`
