@@ -1,0 +1,101 @@
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: vllm-server
+    restart: unless-stopped
+    runtime: nvidia
+    ipc: host
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+      - VLLM_NO_USAGE_STATS=1
+      - DO_NOT_TRACK=1
+    volumes:
+      - ${MODEL_DIR}:/models
+    ports:
+      - "${VLLM_PORT}:8000"
+    command:
+      - "--model"
+      - "${MODEL_NAME}"
+      - "--tensor-parallel-size"
+      - "1"
+      - "--pipeline-parallel-size"
+      - "${PIPELINE_PARALLEL_SIZE}"
+      - "--dtype"
+      - "${DTYPE}"
+      - "--max-model-len"
+      - "${MAX_MODEL_LEN}"
+      - "--gpu-memory-utilization"
+      - "${GPU_MEMORY_UTILIZATION}"
+      - "--max-num-seqs"
+      - "${MAX_NUM_SEQS}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  dcgm-exporter:
+    image: nvidia/dcgm-exporter:latest
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    runtime: nvidia
+    cap_add:
+      - SYS_ADMIN
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    ports:
+      - "${DCGM_PORT}:9400"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  zot-registry:
+    image: ghcr.io/project-zot/zot:latest
+    container_name: zot-registry
+    restart: unless-stopped
+    volumes:
+      - ./registry/data:/var/lib/registry
+      - ./registry/config.json:/etc/zot/config.json
+    ports:
+      - "${ZOT_PORT}:5000"
+    command: ["serve", "/etc/zot/config.json"]
+
+  haproxy:
+    image: haproxy:latest
+    container_name: haproxy-lb
+    restart: unless-stopped
+    profiles:
+      - optional
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
+    ports:
+      - "${HAPROXY_PORT}:8080"
+      - "${HAPROXY_STATS_PORT}:8404"
+    depends_on:
+      - vllm
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "${PROMETHEUS_PORT}:9090"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+    ports:
+      - "${GRAFANA_PORT}:3000"
+    depends_on:
+      - prometheus
