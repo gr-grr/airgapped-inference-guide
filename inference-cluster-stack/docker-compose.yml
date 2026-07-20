@@ -55,31 +55,6 @@ services:
               count: all
               capabilities: [gpu]
 
-  zot-registry:
-    image: ghcr.io/project-zot/zot:latest
-    container_name: zot-registry
-    restart: unless-stopped
-    volumes:
-      - ./registry/data:/var/lib/registry
-      - ./registry/config.json:/etc/zot/config.json
-    ports:
-      - "${ZOT_PORT}:5000"
-    command: ["serve", "/etc/zot/config.json"]
-
-  haproxy:
-    image: haproxy:latest
-    container_name: haproxy-lb
-    restart: unless-stopped
-    profiles:
-      - optional
-    volumes:
-      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
-    ports:
-      - "${HAPROXY_PORT}:8080"
-      - "${HAPROXY_STATS_PORT}:8404"
-    depends_on:
-      - vllm
-
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
