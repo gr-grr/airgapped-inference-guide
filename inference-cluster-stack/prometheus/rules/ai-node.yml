@@ -1,0 +1,35 @@
+groups:
+  - name: ai-node
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is down on {{ $labels.instance }}"
+
+      - alert: HighGPUTemperature
+        expr: DCGM_FI_DEV_GPU_TEMP > 85
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU {{ $labels.gpu }} temperature is {{ $value }}°C"
+
+      - alert: HighGPUMemoryUsage
+        expr: (DCGM_FI_DEV_FB_USED / DCGM_FI_DEV_FB_TOTAL) * 100 > 95
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "GPU {{ $labels.gpu }} memory usage is {{ $value | humanizePercentage }}"
+
+      - alert: HighDiskUsage
+        expr: (node_filesystem_size_bytes{mountpoint="/data"} - node_filesystem_free_bytes{mountpoint="/data"}) / node_filesystem_size_bytes{mountpoint="/data"} * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Disk usage on /data is {{ $value | humanizePercentage }}"

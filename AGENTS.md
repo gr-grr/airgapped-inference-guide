@@ -23,11 +23,22 @@ Blueprint/runbook for two identical standalone LLM inference nodes, each with 2�
 
 ```
 inference-cluster-stack/
-├── docker-compose.yml      # Services: vllm, dcgm-exporter, prometheus, grafana
+├── docker-compose.yml      # 13 services: vllm, dcgm-exporter, postgres, redis,
+│                           #   qdrant, n8n, open-webui, prometheus, grafana,
+│                           #   loki, promtail, alertmanager
 ├── .env.template            # All config vars — copy to .env, never commit .env
 ├── .env                     # Gitignored, per-node config
+├── Makefile                 # Operational helpers: health, backup, secrets
 ├── prometheus/
-│   └── prometheus.yml       # Local-only scraping (localhost targets)
+│   ├── prometheus.yml       # Scrape config (service names, not localhost)
+│   ├── rules/
+│   │   └── ai-node.yml      # Alert rules (GPU temp, disk, service down)
+│   └── alertmanager.yml     # Alert routing (no-op receiver by default)
+├── promtail/
+│   └── promtail.yml         # Docker log shipping to Loki
+├── postgres/
+│   └── init/
+│       └── 01-create-n8n-db.sql
 └── grafana/
     └── data/                # Persistent storage (runtime-created)
 ```
@@ -42,9 +53,9 @@ First service in compose is vllm (PP=2 via `--pipeline-parallel-size ${PIPELINE_
 | 2 | NVIDIA driver and CUDA | nvidia-driver-580-server, cuda-toolkit-13-3 |
 | 3 | Docker and NVIDIA Container Toolkit | docker-ce + compose-plugin + nvidia-container-toolkit |
 | 4 | Model selection and download | Download on internet machine, USB transfer to server, checksum |
-| 5 | Stack setup and per-node config | Copy stack dir, `docker compose pull`, configure `.env` |
-| 6 | Deploy the stack | `docker compose up -d` — starts all 4 services |
-| 7 | Verify the deployment | curl checks for vLLM, DCGM, Prometheus, Grafana |
+| 5 | Stack setup and per-node config | Copy stack dir, `docker compose pull`, configure `.env`, `make generate-secrets` |
+| 6 | Deploy the stack | `docker compose up -d` — starts all 13 services |
+| 7 | Verify the deployment | curl checks for vLLM, Open WebUI, n8n, Qdrant, DCGM, Prometheus, Grafana, Loki, Alertmanager |
 | 8 | Adding a new model later | Post-cutoff: internet machine → USB → server → `.env` → restart |
 | 9 | Pre-cutoff hardening | Disable auto-updates, save images as tar, snapshot state |
 | 10 | Air-gap enforcement | WAN disconnect, verify offline recovery |

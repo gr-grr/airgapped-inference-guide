@@ -163,6 +163,13 @@ sudo update-initramfs -u
 sudo mkdir -p /data/models
 sudo mkdir -p /data/prometheus
 sudo mkdir -p /data/grafana
+sudo mkdir -p /data/postgres
+sudo mkdir -p /data/redis
+sudo mkdir -p /data/qdrant
+sudo mkdir -p /data/n8n
+sudo mkdir -p /data/open-webui
+sudo mkdir -p /data/loki
+sudo mkdir -p /data/alertmanager
 sudo mkdir -p /data/stack
 ```
 
@@ -171,6 +178,13 @@ sudo mkdir -p /data/stack
 | `/data/models` | Model weight files (Llama 4 Scout, Qwen3-VL) |
 | `/data/prometheus` | Prometheus TSDB (metrics history) |
 | `/data/grafana` | Grafana data (dashboards, users, SQLite) |
+| `/data/postgres` | PostgreSQL database files |
+| `/data/redis` | Redis append-only log and snapshots |
+| `/data/qdrant` | Qdrant vector database storage |
+| `/data/n8n` | n8n workflow data and credentials |
+| `/data/open-webui` | Open WebUI sessions, chats, and Whisper models |
+| `/data/loki` | Loki log index and chunks |
+| `/data/alertmanager` | Alertmanager silences and notification state |
 | `/data/stack` | `inference-cluster-stack/` directory |
 
 Docker itself stays on the OS RAID1 at `/var/lib/docker` — the 480 GB OS drives have ample room for ~10 GB of images, and keeping Docker on the OS avoids adding another dependency on the bulk array.
@@ -389,7 +403,7 @@ cd /data/stack
 docker compose pull
 ```
 
-This pulls vLLM, DCGM exporter, Prometheus, and Grafana images.
+This pulls vLLM, DCGM exporter, Postgres, Redis, Qdrant, n8n, Open WebUI, Prometheus, Grafana, Loki, Promtail, and Alertmanager images.
 
 ### 6.3 Configure environment
 
@@ -399,13 +413,23 @@ cp .env.template .env
 
 Edit `.env` and set:
 - `NODE_NAME` — e.g. `node1` (must match the hostname from Step 1.1)
+- `NODE_IP` — the node's IP address on the local network (e.g. `192.168.1.100`)
 - `MODEL_DIR` — path to model weights on bulk SSD (e.g. `/data/models`)
 - `MODEL_NAME` — e.g. `/models/llama-4-scout`
 
-### 6.4 Both nodes are identical
+### 6.4 Generate secrets
+
+```bash
+make generate-secrets
+```
+
+Paste the output values into `.env` — replace all `CHANGE_ME` placeholders.
+
+### 6.5 Both nodes are identical
 The two nodes run the **same stack** with the same config files and the same procedure. Each node gets its own copy of `inference-cluster-stack/` and is configured independently. The only per-node differences are:
 - **Hostname** (set in Step 1.1)
-- **`.env` values** (node name, model path)
+- **Node IP** (`NODE_IP` in `.env`)
+- **`.env` values** (node name, model path, secrets)
 
 From this point forward, every step is executed **identically on both nodes**.
 
@@ -424,10 +448,22 @@ docker compose up -d
 
 | Service | Container name | Purpose |
 |---|---|---|
-| vLLM | `vllm-server` | LLM inference engine (PP=2 across both GPUs) |
+| Postgres | `postgres` | Database for n8n (and future services) |
+| Redis | `redis` | Cache and queue backend for n8n |
+| Qdrant | `qdrant` | Vector database for RAG (Open WebUI) |
+| vLLM | `vllm` | LLM inference engine (PP=2 across both GPUs) |
 | DCGM exporter | `dcgm-exporter` | GPU metrics (power, temperature, memory) |
-| Prometheus | `prometheus` | Metrics collection (scrapes localhost targets only) |
-| Grafana | `grafana` | GPU monitoring dashboards |
+| n8n | `n8n` | Workflow automation (scheduled tasks, AI pipelines) |
+| Open WebUI | `open-webui` | Chat UI with RAG, document upload, Whisper STT |
+| Prometheus | `prometheus` | Metrics collection (scrapes all services by name) |
+| Grafana | `grafana` | Monitoring dashboards |
+| Loki | `loki` | Centralized log aggregation |
+| Promtail | `promtail` | Ships Docker container logs to Loki |
+| Node Exporter | `node-exporter` | Host-level metrics (disk, CPU, memory) |
+| Alertmanager | `alertmanager` | Alert routing (Prometheus alert evaluation) |
+
+### Startup order
+The data layer starts first (Postgres, Redis, Qdrant), then inference (vLLM, DCGM), then applications (n8n, Open WebUI), then observability (Prometheus, Grafana, Loki, Promtail, Alertmanager). Docker Compose handles this automatically via `depends_on` with health checks.
 
 ### Switching models
 To switch between Llama 4 Scout and Qwen3-VL, edit `MODEL_NAME` in `.env` and force-recreate vLLM:
@@ -436,40 +472,107 @@ To switch between Llama 4 Scout and Qwen3-VL, edit `MODEL_NAME` in `.env` and fo
 docker compose up -d vllm --force-recreate
 ```
 
-### Checking logs
+### Checking logs for a specific service
 
 ```bash
 docker compose logs -f vllm
+docker compose logs -f open-webui
+docker compose logs -f n8n
+```
+
+### Checking all service health
+
+```bash
+make health
+```
+
+Expected output (all should show `healthy` after startup completes):
+
+```
+postgres              healthy
+redis                 healthy
+qdrant                healthy
+vllm                  healthy
+dcgm-exporter         healthy
+n8n                   healthy
+open-webui            healthy
+prometheus            healthy
+grafana               healthy
+loki                  healthy
+promtail              healthy
+node-exporter         healthy
+alertmanager          healthy
 ```
 
 ---
 
 ## Step 8 — Verify the deployment
 
-### 8.1 Check vLLM is serving
+### 8.1 Check all services are running
+```bash
+make health
+```
+Expected: all 13 services show `healthy`.
+
+### 8.2 Check vLLM is serving
 ```bash
 curl http://localhost:8000/v1/models
 ```
 Expected: JSON response listing the loaded model.
 
-### 8.2 Check DCGM metrics
+### 8.3 Check Open WebUI
+```bash
+curl http://localhost:8080/health
+```
+Expected: JSON health response.
+
+Then open `http://<node-ip>:8080` in a browser and create the first admin account.
+
+### 8.4 Check n8n
+```bash
+curl http://localhost:5678/healthz
+```
+Expected: `ok`.
+
+Open `http://<node-ip>:5678` in a browser and create the admin account.
+
+### 8.5 Check Qdrant
+```bash
+curl http://localhost:6333/healthz
+```
+Expected: `{"title":"qdrant - vector search engine","version":"...","commit":...}`
+
+### 8.6 Check DCGM metrics
 ```bash
 curl http://localhost:9400/metrics
 ```
 Expected: GPU metrics output (power, temperature, memory usage, etc.).
 
-### 8.3 Check Prometheus
+### 8.7 Check Prometheus
 ```bash
 curl http://localhost:9090/-/ready
 ```
 Expected: `Prometheus is Ready`.
 
-### 8.4 Check Grafana
-- URL: `http://localhost:3000`
-- Default credentials: `admin/admin`
-- Change password immediately
-- Add Prometheus as a data source (`http://localhost:9090`)
+### 8.8 Check Loki
+```bash
+curl http://localhost:3100/ready
+```
+Expected: empty response with status 200.
+
+### 8.9 Check Alertmanager
+```bash
+curl http://localhost:9093/-/healthy
+```
+Expected: `ok`.
+
+### 8.10 Check Grafana
+- URL: `http://<node-ip>:3000`
+- Default credentials: the `GRAFANA_ADMIN_USER` and `GRAFANA_ADMIN_PASSWORD` from `.env`
+- Add Prometheus as a data source (`http://prometheus:9090`)
+- Add Loki as a data source (`http://loki:3100`)
 - Import DCGM dashboard ID **25261**
+- Optionally import a Loki log dashboard for centralized log browsing
 
 ---
 
@@ -598,13 +701,29 @@ Bulk RAID10 (XFS) — 30 TB → /data
   │   └── qwen3-vl-235b/
   ├── prometheus/             ← Prometheus TSDB
   ├── grafana/                ← Grafana data
+  ├── postgres/               ← PostgreSQL database files
+  ├── redis/                  ← Redis AOF + RDB snapshots
+  ├── qdrant/                 ← Qdrant vector storage
+  ├── n8n/                    ← n8n workflow data + credentials
+  ├── open-webui/             ← Open WebUI sessions, chats, Whisper models
+  ├── loki/                   ← Loki log index + chunks
+  ├── alertmanager/           ← Alertmanager notification state
   └── stack/                  ← inference-cluster-stack/
       ├── docker-compose.yml
       ├── .env
       ├── .env.template
+      ├── Makefile
       ├── README.md
       ├── prometheus/
-      │   └── prometheus.yml
+      │   ├── prometheus.yml
+      │   ├── rules/
+      │   │   └── ai-node.yml
+      │   └── alertmanager.yml
+      ├── promtail/
+      │   └── promtail.yml
+      ├── postgres/
+      │   └── init/
+      │       └── 01-create-n8n-db.sql
       └── grafana/
           └── data/           ← NOT used (path moved to /data/grafana)
 ```
@@ -616,21 +735,30 @@ Bulk RAID10 (XFS) — 30 TB → /data
 ### Before cutting internet (do on each node independently)
 - [ ] Ubuntu installed, hostname set
 - [ ] RAID10 array created, formatted XFS, mounted at `/data`, in fstab
-- [ ] `/data/models`, `/data/prometheus`, `/data/grafana`, `/data/stack` created
+- [ ] All `/data/` subdirectories created (models, prometheus, grafana, postgres, redis, qdrant, n8n, open-webui, loki, alertmanager, stack)
 - [ ] NVIDIA driver installed, `nvidia-smi` shows both H200s
 - [ ] Docker + NVIDIA runtime verified (`docker run --gpus all nvidia/cuda:13.3.0-base-ubuntu24.04 nvidia-smi`)
 - [ ] All Docker images pulled (`docker compose pull`)
 - [ ] Scout and Qwen3-VL model weights downloaded and checksummed
-- [ ] Prometheus scrapes, Grafana login works
-- [ ] Compose stack starts cleanly (`docker compose up -d`)
+- [ ] `.env` configured with `NODE_NAME`, `NODE_IP`, `MODEL_DIR`, `MODEL_NAME`
+- [ ] Secrets generated (`make generate-secrets`) and written to `.env`
+- [ ] All 13 services start cleanly (`docker compose up -d`)
+- [ ] `make health` shows all services healthy
 - [ ] vLLM answers a test request (`curl http://localhost:8000/v1/models`)
+- [ ] Open WebUI is accessible at `http://<node-ip>:8080`
+- [ ] n8n is accessible at `http://<node-ip>:5678`
+- [ ] Grafana login works, DCGM dashboard renders data
+- [ ] Loki + Promtail ship logs (check Grafana Explore)
 - [ ] Auto-updates and telemetry disabled
 - [ ] Package state snapshotted, docker images saved as `.tar`
 
 ### After cutoff (do on each node independently)
 - [ ] WAN disconnected, no egress possible
 - [ ] Reboot node and verify full recovery without internet
-- [ ] `docker compose up -d` starts all services
+- [ ] `docker compose up -d` starts all 13 services
+- [ ] `make health` shows all services healthy
 - [ ] vLLM loads model and answers inference requests
+- [ ] Open WebUI chat works, RAG document upload works
 - [ ] Prometheus and Grafana render dashboards from local data
+- [ ] Loki logs visible in Grafana Explore
 - [ ] Model survives container restart (`docker compose restart vllm`)
