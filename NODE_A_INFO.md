@@ -20,7 +20,6 @@
   - `/data/models` — model weights
   - `/data/prometheus` — Prometheus TSDB
   - `/data/grafana` — Grafana data
-  - `/data/archives` — backup tars
   - `/data/stack` — Docker Compose stack (`inference-cluster-stack/`)
 - **Network:** 192.168.100.119 / MAC: 36:07:0d:85:b6:98
 

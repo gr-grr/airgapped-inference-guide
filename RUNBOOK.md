@@ -163,7 +163,6 @@ sudo update-initramfs -u
 sudo mkdir -p /data/models
 sudo mkdir -p /data/prometheus
 sudo mkdir -p /data/grafana
-sudo mkdir -p /data/archives
 sudo mkdir -p /data/stack
 ```
 
@@ -172,7 +171,6 @@ sudo mkdir -p /data/stack
 | `/data/models` | Model weight files (Llama 4 Scout, Qwen3-VL) |
 | `/data/prometheus` | Prometheus TSDB (metrics history) |
 | `/data/grafana` | Grafana data (dashboards, users, SQLite) |
-| `/data/archives` | Backup tarballs + saved Docker images |
 | `/data/stack` | `inference-cluster-stack/` directory |
 
 Docker itself stays on the OS RAID1 at `/var/lib/docker` — the 480 GB OS drives have ample room for ~10 GB of images, and keeping Docker on the OS avoids adding another dependency on the bulk array.
@@ -545,15 +543,7 @@ dpkg --get-selections > ~/dpkg-selections.txt
 docker images > ~/docker-images.txt
 ```
 
-### 10.5 Save container images as tar archives
-```bash
-docker save -o /data/archives/vllm-openai.tar vllm/vllm-openai:latest
-docker save -o /data/archives/dcgm-exporter.tar nvidia/dcgm-exporter:latest
-docker save -o /data/archives/prometheus.tar prom/prometheus:latest
-docker save -o /data/archives/grafana.tar grafana/grafana:latest
-```
-
-### 10.6 Confirm local-only operation
+### 10.5 Confirm local-only operation
 - All required Docker images present locally (`docker images`)
 - Models present and checksums verified
 - Prometheus scrapes local targets successfully
@@ -608,7 +598,6 @@ Bulk RAID10 (XFS) — 30 TB → /data
   │   └── qwen3-vl-235b/
   ├── prometheus/             ← Prometheus TSDB
   ├── grafana/                ← Grafana data
-  ├── archives/               ← Docker image tars + model tarballs
   └── stack/                  ← inference-cluster-stack/
       ├── docker-compose.yml
       ├── .env
@@ -627,7 +616,7 @@ Bulk RAID10 (XFS) — 30 TB → /data
 ### Before cutting internet (do on each node independently)
 - [ ] Ubuntu installed, hostname set
 - [ ] RAID10 array created, formatted XFS, mounted at `/data`, in fstab
-- [ ] `/data/models`, `/data/prometheus`, `/data/grafana`, `/data/stack`, `/data/archives` created
+- [ ] `/data/models`, `/data/prometheus`, `/data/grafana`, `/data/stack` created
 - [ ] NVIDIA driver installed, `nvidia-smi` shows both H200s
 - [ ] Docker + NVIDIA runtime verified (`docker run --gpus all nvidia/cuda:13.3.0-base-ubuntu24.04 nvidia-smi`)
 - [ ] All Docker images pulled (`docker compose pull`)
