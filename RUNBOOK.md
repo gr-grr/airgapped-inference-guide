@@ -140,7 +140,14 @@ sudo apt-get install -y ca-certificates curl
 sudo install -m 0755 -d /etc/apt/keyrings
 sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
 sudo chmod a+r /etc/apt/keyrings/docker.asc
-echo   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu   $(. /etc/os-release && echo "$VERSION_CODENAME") stable" |   sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Architectures: $(dpkg --print-architecture)
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
 sudo apt-get update
 ```
 
@@ -297,6 +304,7 @@ cp .env.template .env
 ```
 
 Edit `.env` and set:
+- `NODE_NAME` — e.g. `inference-dc-a` (must match the hostname from Step 1.1)
 - `MODEL_DIR` — path to model weights on bulk SSD (e.g. `/data/models`)
 - `MODEL_NAME` — e.g. `/models/llama-4-scout`
 
@@ -497,6 +505,7 @@ inference-cluster-stack/
 ├── docker-compose.yml
 ├── .env
 ├── .env.template
+├── README.md
 ├── prometheus/
 │   └── prometheus.yml
 ├── grafana/
