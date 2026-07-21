@@ -38,7 +38,7 @@ First service in compose is vllm (PP=2 via `--pipeline-parallel-size ${PIPELINE_
 | Step | Title | Notes |
 |---|---|---|
 | 1 | OS baseline and system prep | Hostname, apt, base packages, disable nouveau |
-| 2 | NVIDIA driver and CUDA | nvidia-driver-580-server, cuda-toolkit-12-8 |
+| 2 | NVIDIA driver and CUDA | nvidia-driver-580-server, cuda-toolkit-13-3 |
 | 3 | Docker and NVIDIA Container Toolkit | docker-ce + compose-plugin + nvidia-container-toolkit |
 | 4 | Model selection and download | Download on internet machine, USB transfer to server, checksum |
 | 5 | Stack setup and per-node config | Copy stack dir, `docker compose pull`, configure `.env` |

@@ -108,7 +108,7 @@ sudo apt install -y nvidia-driver-580-server
 
 ### 2.3 Install CUDA toolkit
 ```bash
-sudo apt install -y cuda-toolkit-12-8
+sudo apt install -y cuda-toolkit-13-3
 ```
 
 ### 2.4 Reboot and verify
@@ -168,7 +168,7 @@ sudo systemctl restart docker
 
 ### 3.6 Verify GPU access in containers
 ```bash
-docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi
+docker run --rm --gpus all nvidia/cuda:13.3.0-base-ubuntu24.04 nvidia-smi
 ```
 
 ---
@@ -511,7 +511,7 @@ inference-cluster-stack/
 ### Before cutting internet (do on each node independently)
 - [ ] Ubuntu installed, hostname set
 - [ ] NVIDIA driver installed, `nvidia-smi` shows both H200s
-- [ ] Docker + NVIDIA runtime verified (`docker run --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi`)
+- [ ] Docker + NVIDIA runtime verified (`docker run --gpus all nvidia/cuda:13.3.0-base-ubuntu24.04 nvidia-smi`)
 - [ ] All Docker images pulled (`docker compose pull`)
 - [ ] Scout and Qwen3-VL model weights downloaded and checksummed
 - [ ] Prometheus scrapes, Grafana login works

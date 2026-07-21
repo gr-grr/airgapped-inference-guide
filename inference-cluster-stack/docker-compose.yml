@@ -17,7 +17,7 @@ services:
       - "--model"
       - "${MODEL_NAME}"
       - "--tensor-parallel-size"
-      - "1"
+      - "${TENSOR_PARALLEL_SIZE}"
       - "--pipeline-parallel-size"
       - "${PIPELINE_PARALLEL_SIZE}"
       - "--dtype"
