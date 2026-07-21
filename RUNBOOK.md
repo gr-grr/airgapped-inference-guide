@@ -16,7 +16,7 @@ Use this as the operational runbook from fresh Ubuntu install → internet-conne
 ### Per server (both nodes identical)
 - 2× NVIDIA H200, 141GB HBM3e each
 - PCIe interconnect (no NVLink between the two GPUs)
-- Intel Xeon 6700P-series, 32 cores
+- 2× Intel Xeon 6737P, 64 cores / 128 threads
 - Ubuntu Server 26.04 LTS
 - 8× 7.6TB SSDs for bulk storage (model weights, monitoring data)
 - 2× NVMe drives for OS and hot data

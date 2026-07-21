@@ -8,7 +8,7 @@
 - **Serial:** J9033PMT
 
 ## Hardware
-- **CPU:** 128 cores (Intel Xeon 6700P-series)
+- **CPU:** 2× Intel Xeon 6737P, 64 cores / 128 threads
 - **RAM:** 1.0 TiB
 - **GPUs:**
   - GPU 0: NVIDIA H200 NVL 141GB (S/N: 1791626098591)
