@@ -14,8 +14,14 @@
   - GPU 0: NVIDIA H200 NVL 141GB (S/N: 1791626098591)
   - GPU 1: NVIDIA H200 NVL 141GB (S/N: 1791626098735)
 - **Storage:**
-  - 2× 480 GB NVMe (OS): nvme0n1, nvme2n1
-  - 8× 7.6 TB SSD (model weights, monitoring data): nvme1n1, nvme3n1–nvme9n1
+  - 2× 480 GB NVMe → RAID1 → `/` (ext4): nvme0n1, nvme2n1
+  - 8× 7.6 TB NVMe → RAID10 → `/data` (XFS): nvme1n1, nvme3n1–nvme9n1
+- **Storage layout:**
+  - `/data/models` — model weights
+  - `/data/prometheus` — Prometheus TSDB
+  - `/data/grafana` — Grafana data
+  - `/data/archives` — backup tars
+  - `/data/stack` — Docker Compose stack (`inference-cluster-stack/`)
 - **Network:** 192.168.100.119 / MAC: 36:07:0d:85:b6:98
 
 ## Software Stack

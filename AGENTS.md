@@ -10,6 +10,7 @@ Blueprint/runbook for two identical standalone LLM inference nodes, each with 2�
 - **No role split**: Both nodes run the identical full stack — no control-plane/worker
 - **No cross-node networking**: Each node fully standalone, no shared services
 - **Deployment**: Step-by-step runbook followed identically at each DC; no deployment bundle
+- **Storage**: 2× 480 GB NVMe → RAID1 (OS), 8× 7.6 TB NVMe → RAID10 (models + data)
 
 ## Models
 
