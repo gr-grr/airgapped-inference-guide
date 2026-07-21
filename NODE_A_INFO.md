@@ -1,7 +1,7 @@
 # Node A — Inference DC A
 
 ## System Identity
-- **Hostname:** inference-dc-a
+- **Hostname:** node1
 - **Location:** Datacenter A
 - **Vendor:** Lenovo
 - **Model:** ThinkSystem SR650a V4

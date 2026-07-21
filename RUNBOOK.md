@@ -57,12 +57,12 @@ The two nodes are in separate datacenters with no direct link:
 ### 1.1 Set hostname
 On the node at DC A:
 ```bash
-sudo hostnamectl set-hostname inference-dc-a
+sudo hostnamectl set-hostname node1
 ```
 
 On the node at DC B:
 ```bash
-sudo hostnamectl set-hostname inference-dc-b
+sudo hostnamectl set-hostname node2
 ```
 
 ### 1.2 Update the OS while internet is still available
@@ -304,7 +304,7 @@ cp .env.template .env
 ```
 
 Edit `.env` and set:
-- `NODE_NAME` — e.g. `inference-dc-a` (must match the hostname from Step 1.1)
+- `NODE_NAME` — e.g. `node1` (must match the hostname from Step 1.1)
 - `MODEL_DIR` — path to model weights on bulk SSD (e.g. `/data/models`)
 - `MODEL_NAME` — e.g. `/models/llama-4-scout`
 
