@@ -68,6 +68,14 @@ Data volumes use relative paths (`./data/{service}`) resolved from the compose f
 | 10 | Pre-cutoff hardening | Disable auto-updates, save images as tar, snapshot state |
 | 11 | Air-gap enforcement | WAN disconnect, verify offline recovery |
 
+## Deployment workflow
+
+- **Follow `RUNBOOK.md` sequentially step by step** — do not skip ahead
+- **Keep `TRACKER.md` updated** as you go: mark steps ✅ done, ◐ partial, ⬜ not started
+- Wait for user confirmation after each step before proceeding to the next
+- When completing a step, update TRACKER.md and summarize what was done + any issues
+- If a step fails or needs deviation, mark it ◐, note the issue in TRACKER.md, and ask the user
+
 ## Before editing
 
 - Keep `.env` in `.gitignore` — never commit secrets
