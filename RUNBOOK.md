@@ -30,7 +30,7 @@ Use this as the operational runbook from fresh Ubuntu install → internet-conne
 ## Architecture decision
 
 ### Intra-node: PCIe → Pipeline Parallelism (PP)
-The two H200s inside each node connect via **PCIe** (~64 GB/s on Gen4 ×16 or ~128 GB/s on Gen5 ×16), not NVLink (900 GB/s). Tensor Parallelism (TP) requires an all-reduce after every transformer layer, which becomes a bottleneck on PCIe. Scaling efficiency for TP on PCIe is roughly 70-78% per additional GPU.
+The two H200s inside each node connect via **PCIe Gen5 ×16** (~128 GB/s bidirectional), not NVLink (900 GB/s). Tensor Parallelism (TP) requires an all-reduce after every transformer layer, which becomes a bottleneck on PCIe. Scaling efficiency for TP on PCIe is roughly 70-78% per additional GPU.
 
 **Pipeline Parallelism (PP=2)** is the recommended strategy for PCIe-connected GPUs. It splits the model's layers sequentially across the two GPUs:
 - GPU 0 processes layers 0-N, GPU 1 processes layers N+1 to end
