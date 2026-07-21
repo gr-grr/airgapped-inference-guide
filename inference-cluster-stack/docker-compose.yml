@@ -22,8 +22,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - /data/postgres:/var/lib/postgresql/data
-      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./config/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
@@ -44,7 +44,7 @@ services:
       --save 60 1000
       --appendonly yes
     volumes:
-      - /data/redis:/data
+      - ./data/redis:/data
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -a '${REDIS_PASSWORD}' ping | grep PONG"]
       interval: 10s
@@ -59,7 +59,7 @@ services:
     restart: unless-stopped
     logging: *logging
     volumes:
-      - /data/qdrant:/qdrant/storage
+      - ./data/qdrant:/qdrant/storage
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:6333/healthz"]
       interval: 15s
@@ -176,7 +176,7 @@ services:
       EXECUTIONS_DATA_MAX_AGE: "168"
       GENERIC_TIMEZONE: ${TZ:-UTC}
     volumes:
-      - /data/n8n:/home/node/.n8n
+      - ./data/n8n:/home/node/.n8n
     depends_on:
       postgres:
         condition: service_healthy
@@ -215,7 +215,7 @@ services:
       WHISPER_MULTILINGUAL: "true"
       DO_NOT_TRACK: "true"
     volumes:
-      - /data/open-webui:/app/backend/data
+      - ./data/open-webui:/app/backend/data
     depends_on:
       vllm:
         condition: service_healthy
@@ -244,9 +244,9 @@ services:
       - --storage.tsdb.retention.time=30d
       - --web.enable-lifecycle
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/rules:/etc/prometheus/rules:ro
-      - /data/prometheus:/prometheus
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus/rules:/etc/prometheus/rules:ro
+      - ./data/prometheus:/prometheus
     ports:
       - "${PROMETHEUS_PORT}:9090"
     healthcheck:
@@ -270,7 +270,7 @@ services:
       GF_ANALYTICS_REPORTING_ENABLED: "false"
       GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
     volumes:
-      - /data/grafana:/var/lib/grafana
+      - ./data/grafana:/var/lib/grafana
     ports:
       - "${GRAFANA_PORT}:3000"
     depends_on:
@@ -292,7 +292,7 @@ services:
     logging: *logging
     command: -config.file=/etc/loki/local-config.yaml
     volumes:
-      - /data/loki:/loki
+      - ./data/loki:/loki
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:3100/ready"]
       interval: 20s
@@ -309,7 +309,7 @@ services:
     logging: *logging
     command: -config.file=/etc/promtail/promtail.yml
     volumes:
-      - ./promtail/promtail.yml:/etc/promtail/promtail.yml:ro
+      - ./config/promtail/promtail.yml:/etc/promtail/promtail.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
@@ -346,8 +346,8 @@ services:
       - --config.file=/etc/alertmanager/alertmanager.yml
       - --storage.path=/alertmanager
     volumes:
-      - ./prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-      - /data/alertmanager:/alertmanager
+      - ./config/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ./data/alertmanager:/alertmanager
     healthcheck:
       test: ["CMD-SHELL", "wget --spider -q http://localhost:9093/-/healthy"]
       interval: 20s

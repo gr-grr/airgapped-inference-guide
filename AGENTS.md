@@ -10,7 +10,7 @@ Blueprint/runbook for two identical standalone LLM inference nodes, each with 2�
 - **No role split**: Both nodes run the identical full stack — no control-plane/worker
 - **No cross-node networking**: Each node fully standalone, no shared services
 - **Deployment**: Step-by-step runbook followed identically at each DC; no deployment bundle
-- **Storage**: 2× 480 GB NVMe → RAID1 (OS), 8× 7.6 TB NVMe → RAID10 (models + data)
+- **Storage**: 2× 480 GB NVMe → RAID1 (OS), 8× 7.6 TB NVMe → RAID10 (models + data under stack)
 
 ## Models
 
@@ -23,47 +23,55 @@ Blueprint/runbook for two identical standalone LLM inference nodes, each with 2�
 
 ```
 inference-cluster-stack/
-├── docker-compose.yml      # 13 services: vllm, dcgm-exporter, postgres, redis,
+├── config/
+│   ├── prometheus/          # prometheus.yml, rules/, alertmanager.yml
+│   ├── promtail/            # promtail.yml
+│   └── postgres/init/       # Init SQL scripts
+├── data/                    # Runtime data (per-service subdirs)
+│   ├── models/              # Model weights (MODEL_DIR)
+│   ├── prometheus/          # Prometheus TSDB
+│   ├── grafana/             # Grafana data
+│   ├── postgres/            # PostgreSQL database files
+│   ├── redis/               # Redis AOF + RDB snapshots
+│   ├── qdrant/              # Qdrant vector storage
+│   ├── n8n/                 # n8n workflow data + credentials
+│   ├── open-webui/          # Open WebUI sessions, chats, Whisper models
+│   ├── loki/                # Loki log index + chunks
+│   └── alertmanager/        # Alertmanager notification state
+├── backups/                 # Backup artifacts
+├── docker-compose.yml       # 13 services: vllm, dcgm-exporter, postgres, redis,
 │                           #   qdrant, n8n, open-webui, prometheus, grafana,
 │                           #   loki, promtail, alertmanager
 ├── .env.template            # All config vars — copy to .env, never commit .env
 ├── .env                     # Gitignored, per-node config
 ├── Makefile                 # Operational helpers: health, backup, secrets
-├── prometheus/
-│   ├── prometheus.yml       # Scrape config (service names, not localhost)
-│   ├── rules/
-│   │   └── ai-node.yml      # Alert rules (GPU temp, disk, service down)
-│   └── alertmanager.yml     # Alert routing (no-op receiver by default)
-├── promtail/
-│   └── promtail.yml         # Docker log shipping to Loki
-├── postgres/
-│   └── init/
-│       └── 01-create-n8n-db.sql
-└── grafana/
-    └── data/                # Persistent storage (runtime-created)
+└── README.md
 ```
 
 First service in compose is vllm (PP=2 via `--pipeline-parallel-size ${PIPELINE_PARALLEL_SIZE}`). All services start with `docker compose up -d`.
 
-## RUNBOOK.md — 10-step runbook
+Data volumes use relative paths (`./data/{service}`) resolved from the compose file. Config volumes use relative paths (`./config/{service}`). The stack is designed to live at `/data/stack/inference-cluster-stack/` on the RAID10 bulk array.
+
+## RUNBOOK.md — 11-step runbook
 
 | Step | Title | Notes |
 |---|---|---|
 | 1 | OS baseline and system prep | Hostname, apt, base packages, disable nouveau |
-| 2 | NVIDIA driver and CUDA | nvidia-driver-580-server, cuda-toolkit-13-3 |
-| 3 | Docker and NVIDIA Container Toolkit | docker-ce + compose-plugin + nvidia-container-toolkit |
-| 4 | Model selection and download | Download on internet machine, USB transfer to server, checksum |
-| 5 | Stack setup and per-node config | Copy stack dir, `docker compose pull`, configure `.env`, `make generate-secrets` |
-| 6 | Deploy the stack | `docker compose up -d` — starts all 13 services |
-| 7 | Verify the deployment | curl checks for vLLM, Open WebUI, n8n, Qdrant, DCGM, Prometheus, Grafana, Loki, Alertmanager |
-| 8 | Adding a new model later | Post-cutoff: internet machine → USB → server → `.env` → restart |
-| 9 | Pre-cutoff hardening | Disable auto-updates, save images as tar, snapshot state |
-| 10 | Air-gap enforcement | WAN disconnect, verify offline recovery |
+| 2 | Storage setup (RAID10 + XFS) | mdadm RAID10, mkfs.xfs, fstab, directory tree |
+| 3 | NVIDIA driver and CUDA | nvidia-driver-580-server, cuda-toolkit-13-3 |
+| 4 | Docker and NVIDIA Container Toolkit | docker-ce + compose-plugin + nvidia-container-toolkit |
+| 5 | Model selection and download | Download on internet machine, USB transfer to server, checksum |
+| 6 | Stack setup and per-node config | Copy stack dir, create data dirs, `docker compose pull`, configure `.env`, `make generate-secrets` |
+| 7 | Deploy the stack | `docker compose up -d` — starts all 13 services |
+| 8 | Verify the deployment | curl checks for vLLM, Open WebUI, n8n, Qdrant, DCGM, Prometheus, Grafana, Loki, Alertmanager |
+| 9 | Adding a new model later | Post-cutoff: internet machine → USB → server → `.env` → restart |
+| 10 | Pre-cutoff hardening | Disable auto-updates, save images as tar, snapshot state |
+| 11 | Air-gap enforcement | WAN disconnect, verify offline recovery |
 
 ## Before editing
 
 - Keep `.env` in `.gitignore` — never commit secrets
-- When editing RUNBOOK.md, preserve the 10-step numbered structure and checklist format
+- When editing RUNBOOK.md, preserve the 11-step numbered structure and checklist format
 - All env vars referenced in docker-compose.yml must exist in `.env.template`
 - Grafana dashboard ID 25261 (DCGM) is the standard reference
 - Telemetry is disabled via `VLLM_NO_USAGE_STATS=1` and `DO_NOT_TRACK=1`

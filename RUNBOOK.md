@@ -160,32 +160,12 @@ sudo update-initramfs -u
 ### 2.6 Create directory tree
 
 ```bash
-sudo mkdir -p /data/models
-sudo mkdir -p /data/prometheus
-sudo mkdir -p /data/grafana
-sudo mkdir -p /data/postgres
-sudo mkdir -p /data/redis
-sudo mkdir -p /data/qdrant
-sudo mkdir -p /data/n8n
-sudo mkdir -p /data/open-webui
-sudo mkdir -p /data/loki
-sudo mkdir -p /data/alertmanager
 sudo mkdir -p /data/stack
 ```
 
 | Directory | Purpose |
 |---|---|
-| `/data/models` | Model weight files (Llama 4 Scout, Qwen3-VL) |
-| `/data/prometheus` | Prometheus TSDB (metrics history) |
-| `/data/grafana` | Grafana data (dashboards, users, SQLite) |
-| `/data/postgres` | PostgreSQL database files |
-| `/data/redis` | Redis append-only log and snapshots |
-| `/data/qdrant` | Qdrant vector database storage |
-| `/data/n8n` | n8n workflow data and credentials |
-| `/data/open-webui` | Open WebUI sessions, chats, and Whisper models |
-| `/data/loki` | Loki log index and chunks |
-| `/data/alertmanager` | Alertmanager silences and notification state |
-| `/data/stack` | `inference-cluster-stack/` directory |
+| `/data/stack` | Root for `inference-cluster-stack/` and all its data |
 
 Docker itself stays on the OS RAID1 at `/var/lib/docker` — the 480 GB OS drives have ample room for ~10 GB of images, and keeping Docker on the OS avoids adding another dependency on the bulk array.
 
@@ -332,7 +312,7 @@ KV cache + overhead:  ~140 GB headroom ← comfortable
 
 ### 5.4 Model storage layout
 
-`/data/models` was created in Step 2.6. Model weights live on the RAID10 bulk array, separate from the OS RAID1.
+Model weights live at `/data/stack/inference-cluster-stack/data/models` on the RAID10 bulk array, separate from the OS RAID1. The data directory will be created in Step 6 after the stack is copied.
 
 ### 5.5 Download model weights
 
@@ -362,26 +342,31 @@ tar czf qwen3-vl-235b.tar.gz ./qwen3-vl-235b
 If the server has temporary internet access during setup, you can download directly:
 
 ```bash
+# Create model directory after the stack is set up (Step 6)
+model_dir=/data/stack/inference-cluster-stack/data/models
+sudo mkdir -p "$model_dir"
 huggingface-cli download meta-llama/Llama-4-Scout-17B-16E-Instruct \
-  --local-dir /data/models/llama-4-scout \
+  --local-dir "$model_dir/llama-4-scout" \
   --local-dir-use-symlinks False
 huggingface-cli download Qwen/Qwen3-VL-235B-A22B-Instruct \
-  --local-dir /data/models/qwen3-vl-235b \
+  --local-dir "$model_dir/qwen3-vl-235b" \
   --local-dir-use-symlinks False
 ```
 
 ### 5.6 Transfer to the server
 
 ```bash
-sudo tar xzf /path/to/usb/llama-4-scout.tar.gz -C /data/models/
-sudo tar xzf /path/to/usb/qwen3-vl-235b.tar.gz -C /data/models/
+sudo mkdir -p /data/stack/inference-cluster-stack/data/models
+sudo tar xzf /path/to/usb/llama-4-scout.tar.gz -C /data/stack/inference-cluster-stack/data/models/
+sudo tar xzf /path/to/usb/qwen3-vl-235b.tar.gz -C /data/stack/inference-cluster-stack/data/models/
 ```
 
 ### 5.7 Checksum the model files
 
 ```bash
-find /data/models/llama-4-scout -type f -exec sha256sum {} \; > /data/models/llama-4-scout.sha256
-find /data/models/qwen3-vl-235b -type f -exec sha256sum {} \; > /data/models/qwen3-vl-235b.sha256
+cd /data/stack/inference-cluster-stack/data/models
+find llama-4-scout -type f -exec sha256sum {} \; > llama-4-scout.sha256
+find qwen3-vl-235b -type f -exec sha256sum {} \; > qwen3-vl-235b.sha256
 ```
 
 ---
@@ -395,17 +380,37 @@ The `inference-cluster-stack/` directory contains the full Docker Compose stack.
 cp -r /path/to/usb/inference-cluster-stack /data/stack
 ```
 
-### 6.2 Pull container images
+### 6.2 Create data directories
+Create runtime data directories under the stack. These hold persistent data for each service:
+
+```bash
+mkdir -p /data/stack/inference-cluster-stack/data/{models,prometheus,grafana,postgres,redis,qdrant,n8n,open-webui,loki,alertmanager}
+```
+
+| Directory | Purpose |
+|---|---|
+| `data/models` | Model weight files (Llama 4 Scout, Qwen3-VL) |
+| `data/prometheus` | Prometheus TSDB (metrics history) |
+| `data/grafana` | Grafana data (dashboards, users, SQLite) |
+| `data/postgres` | PostgreSQL database files |
+| `data/redis` | Redis append-only log and snapshots |
+| `data/qdrant` | Qdrant vector database storage |
+| `data/n8n` | n8n workflow data and credentials |
+| `data/open-webui` | Open WebUI sessions, chats, and Whisper models |
+| `data/loki` | Loki log index and chunks |
+| `data/alertmanager` | Alertmanager silences and notification state |
+
+### 6.3 Pull container images
 Pull all container images now while internet is available:
 
 ```bash
-cd /data/stack
+cd /data/stack/inference-cluster-stack
 docker compose pull
 ```
 
 This pulls vLLM, DCGM exporter, Postgres, Redis, Qdrant, n8n, Open WebUI, Prometheus, Grafana, Loki, Promtail, and Alertmanager images.
 
-### 6.3 Configure environment
+### 6.4 Configure environment
 
 ```bash
 cp .env.template .env
@@ -414,10 +419,10 @@ cp .env.template .env
 Edit `.env` and set:
 - `NODE_NAME` — e.g. `node1` (must match the hostname from Step 1.1)
 - `NODE_IP` — the node's IP address on the local network (e.g. `192.168.1.100`)
-- `MODEL_DIR` — path to model weights on bulk SSD (e.g. `/data/models`)
+- `MODEL_DIR` — path to model weights (e.g. `/data/stack/inference-cluster-stack/data/models`)
 - `MODEL_NAME` — e.g. `/models/llama-4-scout`
 
-### 6.4 Generate secrets
+### 6.5 Generate secrets
 
 ```bash
 make generate-secrets
@@ -425,7 +430,7 @@ make generate-secrets
 
 Paste the output values into `.env` — replace all `CHANGE_ME` placeholders.
 
-### 6.5 Both nodes are identical
+### 6.6 Both nodes are identical
 The two nodes run the **same stack** with the same config files and the same procedure. Each node gets its own copy of `inference-cluster-stack/` and is configured independently. The only per-node differences are:
 - **Hostname** (set in Step 1.1)
 - **Node IP** (`NODE_IP` in `.env`)
@@ -440,7 +445,7 @@ From this point forward, every step is executed **identically on both nodes**.
 All services are managed through Docker Compose. Start everything with a single command:
 
 ```bash
-cd /data/stack
+cd /data/stack/inference-cluster-stack
 docker compose up -d
 ```
 
@@ -599,16 +604,17 @@ tar czf <model-folder>.tar.gz ./<model-folder>
 
 ### 9.2 Copy to the server
 ```bash
-sudo tar xzf /path/to/usb/<model-folder>.tar.gz -C /data/models/
+model_dir=/data/stack/inference-cluster-stack/data/models
+sudo tar xzf /path/to/usb/<model-folder>.tar.gz -C "$model_dir"
 
 # Verify checksums
-cd /data/models/<model-folder>
-sha256sum -c ../<model-folder>.sha256
+cd "$model_dir/<model-folder>"
+sha256sum -c "../<model-folder>.sha256"
 ```
 
 ### 9.3 Update .env and restart
 ```bash
-cd /data/stack
+cd /data/stack/inference-cluster-stack
 # Edit .env — change MODEL_NAME to /models/<model-folder>
 docker compose up -d vllm --force-recreate
 ```
@@ -696,36 +702,37 @@ OS RAID1 (ext4) — 480 GB
 
 Bulk RAID10 (XFS) — 30 TB → /data
   /data/
-  ├── models/                ← Model weights (MODEL_DIR)
-  │   ├── llama-4-scout/
-  │   └── qwen3-vl-235b/
-  ├── prometheus/             ← Prometheus TSDB
-  ├── grafana/                ← Grafana data
-  ├── postgres/               ← PostgreSQL database files
-  ├── redis/                  ← Redis AOF + RDB snapshots
-  ├── qdrant/                 ← Qdrant vector storage
-  ├── n8n/                    ← n8n workflow data + credentials
-  ├── open-webui/             ← Open WebUI sessions, chats, Whisper models
-  ├── loki/                   ← Loki log index + chunks
-  ├── alertmanager/           ← Alertmanager notification state
   └── stack/                  ← inference-cluster-stack/
+      ├── config/
+      │   ├── prometheus/
+      │   │   ├── prometheus.yml
+      │   │   ├── rules/
+      │   │   │   └── ai-node.yml
+      │   │   └── alertmanager.yml
+      │   ├── promtail/
+      │   │   └── promtail.yml
+      │   └── postgres/
+      │       └── init/
+      │           └── 01-create-n8n-db.sql
+      ├── data/
+      │   ├── models/         ← Model weights (MODEL_DIR)
+      │   │   ├── llama-4-scout/
+      │   │   └── qwen3-vl-235b/
+      │   ├── prometheus/     ← Prometheus TSDB
+      │   ├── grafana/        ← Grafana data
+      │   ├── postgres/       ← PostgreSQL database files
+      │   ├── redis/          ← Redis AOF + RDB snapshots
+      │   ├── qdrant/         ← Qdrant vector storage
+      │   ├── n8n/            ← n8n workflow data + credentials
+      │   ├── open-webui/     ← Open WebUI sessions, chats, Whisper models
+      │   ├── loki/           ← Loki log index + chunks
+      │   └── alertmanager/   ← Alertmanager notification state
+      ├── backups/            ← Backup artifacts
       ├── docker-compose.yml
       ├── .env
       ├── .env.template
       ├── Makefile
-      ├── README.md
-      ├── prometheus/
-      │   ├── prometheus.yml
-      │   ├── rules/
-      │   │   └── ai-node.yml
-      │   └── alertmanager.yml
-      ├── promtail/
-      │   └── promtail.yml
-      ├── postgres/
-      │   └── init/
-      │       └── 01-create-n8n-db.sql
-      └── grafana/
-          └── data/           ← NOT used (path moved to /data/grafana)
+      └── README.md
 ```
 
 ---
@@ -735,7 +742,9 @@ Bulk RAID10 (XFS) — 30 TB → /data
 ### Before cutting internet (do on each node independently)
 - [ ] Ubuntu installed, hostname set
 - [ ] RAID10 array created, formatted XFS, mounted at `/data`, in fstab
-- [ ] All `/data/` subdirectories created (models, prometheus, grafana, postgres, redis, qdrant, n8n, open-webui, loki, alertmanager, stack)
+- [ ] `/data/stack` directory created and `inference-cluster-stack/` copied in
+- [ ] Data subdirectories created under `inference-cluster-stack/data/`
+- [ ] Stack config directory tree verified (`config/` has prometheus, promtail, postgres)
 - [ ] NVIDIA driver installed, `nvidia-smi` shows both H200s
 - [ ] Docker + NVIDIA runtime verified (`docker run --gpus all nvidia/cuda:13.3.0-base-ubuntu24.04 nvidia-smi`)
 - [ ] All Docker images pulled (`docker compose pull`)
