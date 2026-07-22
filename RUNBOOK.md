@@ -299,81 +299,96 @@ We deploy **both** models for comparison:
 
 ### 5.3 Memory budget per model
 
-**Llama 4 Scout at FP8** (recommended starting point):
+**Qwen3-VL 235B-A22B at AWQ (INT4)** — recommended primary for multi-user:
 ```
 Total GPU memory:     282 GB (2 × 141 GB)
-Model weights (FP8):  ~109 GB
-KV cache + overhead:  ~150 GB headroom ← excellent for multi-user + long context
+Model weights (AWQ):  ~118 GB
+KV cache + overhead:  ~152 GB headroom ← excellent for multi-user
 ```
+Best suited if you need multilingual OCR (39 languages incl. Arabic, French, English), reasoning, tool use, and agentic capabilities under Apache 2.0 license.
 
 **Qwen3-VL 235B-A22B at FP8** (tighter, still workable):
 ```
 Total GPU memory:     282 GB
 Model weights (FP8):  ~235 GB
-KV cache + overhead:  ~30-40 GB headroom ← tight, fewer concurrent users
+KV cache + overhead:  ~35 GB headroom ← tight, fewer concurrent users
 ```
 
-**Qwen3-VL 235B-A22B at Q4** (more headroom):
+**Llama 4 Scout at FP8** — secondary for long-context tasks:
 ```
 Total GPU memory:     282 GB
-Model weights (Q4):   ~118 GB
-KV cache + overhead:  ~140 GB headroom ← comfortable
+Model weights (FP8):  ~109 GB
+KV cache + overhead:  ~161 GB headroom ← excellent for multi-user + 10M context
 ```
+Use for tasks needing extreme context length (10M tokens). Weaker on Arabic OCR and agentic tasks compared to Qwen3-VL.
 
-**FP8** is the default precision on H200 (native Hopper FP8 tensor cores, near-lossless quality). **Q4** (AWQ/GPTQ) compresses weights further at a small quality cost but frees more memory for KV cache and concurrency.
+**FP8** is the default precision on H200 (native Hopper FP8 tensor cores, near-lossless quality). **AWQ (INT4)** compresses weights ~2× further with minimal quality loss, freeing more memory for KV cache and multi-user concurrency — the recommended choice for multi-user API serving.
 
 ### 5.4 Model storage layout
 
 Model weights live at `/data/stack/inference-cluster-stack/data/models` on the RAID10 bulk array, separate from the OS RAID1. The data directory will be created in Step 6 after the stack is copied.
 
-### 5.5 Download model weights
+### 5.5 Install HuggingFace CLI
+
+Ubuntu 26.04 enforces PEP 668 (externally managed Python), so `pip install` system-wide is blocked. Use `pipx` instead:
+
+```bash
+sudo apt install -y pipx
+pipx install huggingface-hub
+```
+
+The `hf` binary is at `~/.local/bin/hf`. Add it to PATH or use the full path.
+
+**Note:** `huggingface-cli` is deprecated. Use the new `hf` CLI for all operations.
+
+### 5.6 Authenticate
+
+Llama 4 Scout requires gated access — accept terms at https://huggingface.co/meta-llama/Llama-4-Scout-17B-16E-Instruct first.
+
+```bash
+hf auth login --token <your-hf-token>
+```
+
+### 5.7 Download model weights
 
 Download on a machine with internet access, then transfer to the server via USB:
 
 ```bash
 # On the workstation:
-pip install -U huggingface_hub[cli]
-huggingface-cli login
-
 # Llama 4 Scout
-huggingface-cli download meta-llama/Llama-4-Scout-17B-16E-Instruct \
-  --local-dir ./llama-4-scout \
-  --local-dir-use-symlinks False
+hf download meta-llama/Llama-4-Scout-17B-16E-Instruct \
+  --local-dir ./llama-4-scout
 
-# Qwen3-VL
-huggingface-cli download Qwen/Qwen3-VL-235B-A22B-Instruct \
-  --local-dir ./qwen3-vl-235b \
-  --local-dir-use-symlinks False
+# Qwen3-VL (AWQ quantized — recommended for multi-user)
+hf download QuantTrio/Qwen3-VL-235B-A22B-Instruct-AWQ \
+  --local-dir ./qwen3-vl-235b
 
 # Package for transfer
 tar czf llama-4-scout.tar.gz ./llama-4-scout
-tar czf qwen3-vl-235b.tar.gz ./qwen3-vl-235b
+tar czf qwen3-vl-235b-awq.tar.gz ./qwen3-vl-235b
 # Copy tar files to USB drive
 ```
 
 If the server has temporary internet access during setup, you can download directly:
 
 ```bash
-# Create model directory after the stack is set up (Step 6)
 model_dir=/data/stack/inference-cluster-stack/data/models
 sudo mkdir -p "$model_dir"
-huggingface-cli download meta-llama/Llama-4-Scout-17B-16E-Instruct \
-  --local-dir "$model_dir/llama-4-scout" \
-  --local-dir-use-symlinks False
-huggingface-cli download Qwen/Qwen3-VL-235B-A22B-Instruct \
-  --local-dir "$model_dir/qwen3-vl-235b" \
-  --local-dir-use-symlinks False
+hf download meta-llama/Llama-4-Scout-17B-16E-Instruct \
+  --local-dir "$model_dir/llama-4-scout"
+hf download QuantTrio/Qwen3-VL-235B-A22B-Instruct-AWQ \
+  --local-dir "$model_dir/qwen3-vl-235b"
 ```
 
-### 5.6 Transfer to the server
+### 5.8 Transfer to the server
 
 ```bash
 sudo mkdir -p /data/stack/inference-cluster-stack/data/models
 sudo tar xzf /path/to/usb/llama-4-scout.tar.gz -C /data/stack/inference-cluster-stack/data/models/
-sudo tar xzf /path/to/usb/qwen3-vl-235b.tar.gz -C /data/stack/inference-cluster-stack/data/models/
+sudo tar xzf /path/to/usb/qwen3-vl-235b-awq.tar.gz -C /data/stack/inference-cluster-stack/data/models/
 ```
 
-### 5.7 Checksum the model files
+### 5.9 Checksum the model files
 
 ```bash
 cd /data/stack/inference-cluster-stack/data/models

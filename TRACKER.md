@@ -21,7 +21,7 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 | 2 | Storage setup (RAID10 + XFS) | ✅ | ⬜ |
 | 3 | NVIDIA driver and CUDA | ✅ | ⬜ |
 | 4 | Docker and NVIDIA Container Toolkit | ✅ | ⬜ |
-| 5 | Model selection and download | ⬜ | ⬜ |
+| 5 | Model selection and download | ◐ | ⬜ |
 | 6 | Stack setup and per-node config | ⬜ | ⬜ |
 | 7 | Deploy the stack | ⬜ | ⬜ |
 | 8 | Verify the deployment | ⬜ | ⬜ |
@@ -33,7 +33,7 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 
 ## What exists so far
 
-These artifacts exist, and Node A hardware is now provisioned through Step 3:
+These artifacts exist, and Node A hardware is now provisioned through Step 4 (Step 5 in progress):
 
 | Artifact | Purpose |
 |----------|---------|
@@ -48,6 +48,7 @@ These artifacts exist, and Node A hardware is now provisioned through Step 3:
 | `inference-cluster-stack/Makefile` | Operational helpers (health, backup, secrets) |
 | `inference-cluster-stack/config/` | Prometheus, promtail, postgres configs |
 | `inference-cluster-stack/data/` | Runtime data directories (empty, ready for deployment) |
+| `docs/CONTEXT_STEP5_NODEA.md` | Session context: model research, CLI install, next actions for Node A |
 
 ---
 
@@ -62,7 +63,10 @@ These artifacts exist, and Node A hardware is now provisioned through Step 3:
 4. Install Docker CE + nvidia-container-toolkit
 
 ### Per node — Steps 5-6 (models + stack config)
-5. Download model weights (Llama 4 Scout + Qwen3-VL) → `data/models/`
+5. Download model weights → `data/models/`
+   - **Decision:** Qwen3-VL-235B-A22B at AWQ (INT4) as primary, Llama 4 Scout FP8 as secondary
+   - ⬜ Download not yet started (prev FP8 partial download killed, AWQ quant selected instead)
+   - `RUNBOOK.md` updated: pipx install for PEP 668, `hf` CLI, AWQ model ID
 6. Copy stack, create data dirs, configure `.env`, run `make generate-secrets`
 
 ### Per node — Steps 7-8 (deploy + verify)
