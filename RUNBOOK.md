@@ -152,8 +152,14 @@ echo "UUID=$(sudo blkid -s UUID -o value /dev/md0) /data xfs defaults,noatime 0 
 
 ### 2.5 Save RAID configuration
 
+**Important: overwrite, don't append.** Using `tee -a` can accumulate stale
+entries from previous arrays (including IMSM containers from vendor RAID),
+which can cause boot failures if NVMe device names change across reboots.
+See [`docs/nvme-device-shuffle-raid-boot-failure.md`](docs/nvme-device-shuffle-raid-boot-failure.md)
+for the full incident report.
+
 ```bash
-sudo mdadm --detail --scan | sudo tee -a /etc/mdadm/mdadm.conf
+sudo bash -c 'echo "# mdadm.conf – overwritten by setup" > /etc/mdadm/mdadm.conf && mdadm --detail --scan >> /etc/mdadm/mdadm.conf'
 sudo update-initramfs -u
 ```
 
@@ -180,6 +186,12 @@ Expected:
 Filesystem      Size  Used Avail Use% Mounted on
 /dev/md0        30T   XX   30T    X% /data
 ```
+
+**Before the next reboot:** confirm `/etc/mdadm/mdadm.conf` contains only
+current arrays (no stale entries from old or vendor RAID configs). NVMe device
+names can change across reboots — the UUID-based references in
+`mdadm --detail --scan` handle this correctly, but stale entries can confuse
+assembly. See [`docs/nvme-device-shuffle-raid-boot-failure.md`](docs/nvme-device-shuffle-raid-boot-failure.md).
 
 ---
 

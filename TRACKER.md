@@ -17,10 +17,10 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 
 | Step | Title | Node A (node1) | Node B (node2) |
 |------|-------|----------------|----------------|
-| 1 | OS baseline and system prep | ⬜ | ⬜ |
-| 2 | Storage setup (RAID10 + XFS) | ⬜ | ⬜ |
-| 3 | NVIDIA driver and CUDA | ⬜ | ⬜ |
-| 4 | Docker and NVIDIA Container Toolkit | ⬜ | ⬜ |
+| 1 | OS baseline and system prep | ✅ | ⬜ |
+| 2 | Storage setup (RAID10 + XFS) | ✅ | ⬜ |
+| 3 | NVIDIA driver and CUDA | ✅ | ⬜ |
+| 4 | Docker and NVIDIA Container Toolkit | ✅ | ⬜ |
 | 5 | Model selection and download | ⬜ | ⬜ |
 | 6 | Stack setup and per-node config | ⬜ | ⬜ |
 | 7 | Deploy the stack | ⬜ | ⬜ |
@@ -31,9 +31,9 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 
 ---
 
-## What exists so far (blueprint/runbook only)
+## What exists so far
 
-These are the planning artifacts — no hardware has been provisioned:
+These artifacts exist, and Node A hardware is now provisioned through Step 3:
 
 | Artifact | Purpose |
 |----------|---------|
@@ -56,6 +56,8 @@ These are the planning artifacts — no hardware has been provisioned:
 ### Per node — Steps 1-4 (OS, storage, drivers, Docker)
 1. Install Ubuntu 26.04, set hostname (`node1` / `node2`), disable nouveau
 2. Create RAID10 from 8× NVMe, format XFS, mount at `/data`
+   ⚠️ **After RAID creation:** overwrite `/etc/mdadm/mdadm.conf` (don't append),
+      rebuild initramfs. See `docs/nvme-device-shuffle-raid-boot-failure.md`.
 3. Install NVIDIA driver 580-server + CUDA 13-3
 4. Install Docker CE + nvidia-container-toolkit
 
@@ -87,3 +89,4 @@ These are the planning artifacts — no hardware has been provisioned:
 | `inference-cluster-stack/.env` | Per-node config (gitignored — never commit) |
 | `inference-cluster-stack/.env.template` | Config template with all env vars |
 | `inference-cluster-stack/Makefile` | Operational commands |
+| `docs/nvme-device-shuffle-raid-boot-failure.md` | Incident report: NVMe device name shuffle after reboot causing RAID boot failure |
