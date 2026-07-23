@@ -26,7 +26,7 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 | 7 | Deploy the stack | ✅ | ⬜ |
 | 8 | Verify the deployment | ✅ | ⬜ |
 | 9 | Adding a new model later | 🔲 | 🔲 |
-| 10 | Pre-cutoff hardening | ⬜ | ⬜ |
+| 10 | Pre-cutoff hardening | ✅ | ⬜ |
 | 11 | Air-gap enforcement | ⬜ | ⬜ |
 
 ---
@@ -74,8 +74,8 @@ These artifacts exist, and Node A hardware is now provisioned through Step 6 (St
 8. Health checks: vLLM, Open WebUI, n8n, Qdrant, Prometheus, Grafana, Loki, Alertmanager
 
 ### Per node — Steps 10-11 (harden + air-gap)
-9. Disable auto-updates, telemetry, snapshot state
-10. WAN disconnect, reboot, verify full offline recovery
+10. ✅ Disable auto-updates, remove snapd, telemetry already set, snapshot state (Node A)
+11. WAN disconnect, reboot, verify full offline recovery
 
 ---
 

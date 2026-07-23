@@ -699,9 +699,11 @@ DO_NOT_TRACK=1
 
 ### 10.4 Snapshot package and image state
 ```bash
-apt-mark showmanual > ~/manual-packages.txt
-dpkg --get-selections > ~/dpkg-selections.txt
-docker images > ~/docker-images.txt
+snapshot_dir="backups/pre-cutoff-$(date +%Y-%m-%d)"
+mkdir -p "$snapshot_dir"
+apt-mark showmanual > "$snapshot_dir/manual-packages.txt"
+dpkg --get-selections > "$snapshot_dir/dpkg-selections.txt"
+docker images > "$snapshot_dir/docker-images.txt"
 ```
 
 ### 10.5 Confirm local-only operation
