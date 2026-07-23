@@ -22,7 +22,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql
       - ./config/postgres/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
@@ -61,7 +61,7 @@ services:
     volumes:
       - ./data/qdrant:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:6333/healthz"]
+      test: ["CMD", "/bin/bash", "-c", "exec 3<>/dev/tcp/localhost/6333"]
       interval: 15s
       timeout: 5s
       retries: 10
@@ -73,7 +73,7 @@ services:
   # Inference
   # ===========================================================================
   vllm:
-    image: vllm/vllm-openai:latest
+    image: vllm/vllm-openai:patched-qwen3vl-pp
     container_name: vllm
     restart: unless-stopped
     logging: *logging
@@ -85,7 +85,7 @@ services:
       DO_NOT_TRACK: 1
       HF_HUB_OFFLINE: 1
     volumes:
-      - ${MODEL_DIR}:${MODEL_DIR}
+      - ${MODEL_DIR}:/models
     ports:
       - "${VLLM_PORT}:8000"
     command:
@@ -115,7 +115,7 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8000/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
       interval: 30s
       timeout: 15s
       retries: 10
@@ -209,6 +209,7 @@ services:
       RAG_EMBEDDING_MODEL: llama
       VECTOR_DB: qdrant
       QDRANT_URL: http://qdrant:6333
+      QDRANT_URI: http://qdrant:6333
       WHISPER_MODEL: ${WHISPER_MODEL:-base}
       WHISPER_MODEL_DIR: /app/backend/data/whisper/models
       WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
@@ -222,7 +223,7 @@ services:
       qdrant:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:8080/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -294,11 +295,7 @@ services:
     volumes:
       - ./data/loki:/loki
     healthcheck:
-      test: ["CMD-SHELL", "wget --spider -q http://localhost:3100/ready"]
-      interval: 20s
-      timeout: 10s
-      retries: 10
-      start_period: 20s
+      disable: true
     networks:
       - backend
 
@@ -314,7 +311,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       loki:
-        condition: service_healthy
+        condition: service_started
     networks:
       - backend
 

@@ -469,12 +469,25 @@ From this point forward, every step is executed **identically on both nodes**.
 
 ## Step 7 — Deploy the stack
 
-All services are managed through Docker Compose. Start everything with a single command:
+### 7.1 Build the patched vLLM image (Qwen3-VL MoE PP>1 fix)
+
+The stock `vllm/vllm-openai:latest` crashes with Qwen3-VL MoE models at `pipeline-parallel-size > 1`
+([vLLM PR #43272](https://github.com/vllm-project/vllm/pull/43272)).
+Build the patched image before starting the stack:
+
+```bash
+cd /data/stack/inference-cluster-stack
+docker build -t vllm/vllm-openai:patched-qwen3vl-pp -f patches/vllm-qwen3-vl-pp-fix.dockerfile .
+```
+
+### 7.2 Start all services
 
 ```bash
 cd /data/stack/inference-cluster-stack
 docker compose up -d
 ```
+
+> **Note:** `docker compose up -d` may fail for some services on first run due to health checks or permission issues. Common fixes documented in `docs/CONTEXT_STEP7_NODEA.md`.
 
 ### Services started
 
@@ -496,6 +509,18 @@ docker compose up -d
 
 ### Startup order
 The data layer starts first (Postgres, Redis, Qdrant), then inference (vLLM, DCGM), then applications (n8n, Open WebUI), then observability (Prometheus, Grafana, Loki, Promtail, Alertmanager). Docker Compose handles this automatically via `depends_on` with health checks.
+
+### Known gotchas
+
+These issues were discovered during initial deployment and fixed in the repo's `docker-compose.yml`. Be aware if customizing:
+
+- **Postgres 18+ volume path**: Mount to `/var/lib/postgresql`, not `/var/lib/postgresql/data`. The Alpine image places the `data` subdirectory automatically under the mount point.
+- **Qdrant health check**: The `qurant/qdrant` image has no `wget`. Use `CMD /bin/bash -c "exec 3<>/dev/tcp/localhost/6333"` instead of `CMD-SHELL wget`.
+- **vLLM health check**: The `vllm/vllm-openai` image has `curl` but not `wget`. Use `CMD curl -sf` instead of `CMD-SHELL wget`.
+- **Loki health check**: The `grafana/loki` image is distroless (no shell/wget/curl). Set `healthcheck: disable: true`.
+- **vLLM Qwen3-VL PP>1**: Stock vLLM crashes loading Qwen3-VL MoE with PP>1. Use patched image `vllm/vllm-openai:patched-qwen3vl-pp` (PR #43272 fix).
+- **Open WebUI Qdrant**: v0.10.2 needs both `QDRANT_URL` and `QDRANT_URI` set to `http://qdrant:6333`.
+- **Loki health → Promtail dependency**: If Loki health is disabled, change Promtail's `depends_on` to `condition: service_started`.
 
 ### Switching models
 To switch between Llama 4 Scout and Qwen3-VL, edit `MODEL_NAME` in `.env` and force-recreate vLLM:
@@ -530,7 +555,7 @@ n8n                   healthy
 open-webui            healthy
 prometheus            healthy
 grafana               healthy
-loki                  healthy
+loki                  disabled (healthcheck)
 promtail              healthy
 node-exporter         healthy
 alertmanager          healthy
