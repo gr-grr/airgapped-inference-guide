@@ -92,11 +92,14 @@ services:
       - "--model"
       - "${MODEL_NAME}"
       - "--served-model-name"
-      - "llama"
+      - "qwen3-vl"
       - "--tensor-parallel-size"
       - "${TENSOR_PARALLEL_SIZE}"
       - "--pipeline-parallel-size"
       - "${PIPELINE_PARALLEL_SIZE}"
+      - "--enable-auto-tool-choice"
+      - "--tool-call-parser"
+      - "hermes"
       - "--dtype"
       - "${DTYPE}"
       - "--max-model-len"
@@ -202,11 +205,9 @@ services:
       WEBUI_SECRET_KEY: ${WEBUI_SECRET_KEY}
       ENABLE_SIGNUP: ${OPEN_WEBUI_ENABLE_SIGNUP:-false}
       OPENAI_API_BASE_URL: http://vllm:8000/v1
-      OPENAI_API_KEY: not-needed
       RAG_EMBEDDING_ENGINE: openai
       RAG_OPENAI_API_BASE_URL: http://vllm:8000/v1
-      RAG_OPENAI_API_KEY: not-needed
-      RAG_EMBEDDING_MODEL: llama
+      RAG_EMBEDDING_MODEL: qwen3-vl
       VECTOR_DB: qdrant
       QDRANT_URL: http://qdrant:6333
       QDRANT_URI: http://qdrant:6333
