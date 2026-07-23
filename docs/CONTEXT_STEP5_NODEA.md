@@ -51,11 +51,19 @@ For multi-user API serving, AWQ is the right call — 152 GB headroom for KV cac
 - Llama 4 Scout was not downloaded (only config files, 68K)
 - Need to clean up `/data/stack/inference-cluster-stack/data/models/` before restarting
 
-## Next Actions for new conversation
+## Status — COMPLETED
 
-1. Read `AGENTS.md`, `RUNBOOK.md`, `NODE_A_INFO.md`, `TRACKER.md`
-2. Read this file: `docs/CONTEXT_STEP5_NODEA.md`
-3. Clean up old partial downloads: `rm -rf /data/stack/inference-cluster-stack/data/models/qwen3-vl-235b`
-4. Download AWQ model: `hf download QuantTrio/Qwen3-VL-235B-A22B-Instruct-AWQ --local-dir /data/stack/inference-cluster-stack/data/models/qwen3-vl-235b`
-5. Once done, checksum the model files
-6. Update TRACKER.md — Step 5 complete, proceed to Step 6
+- ✅ Old partial FP8 download cleaned up
+- ✅ Qwen3-VL 235B-A22B AWQ downloaded (121 GB, 42/42 safetensors files)
+- ✅ Checksums verified — all files OK
+- ✅ TRACKER.md updated — Step 5 ✅ for Node A
+- ✅ NODE_A_INFO.md updated — primary/secondary roles corrected
+
+## Next step
+
+Proceed to **Step 6** — Stack setup and per-node configuration:
+- Ensure `inference-cluster-stack/` is at `/data/stack/`
+- Create data directories
+- Configure `.env`
+- `make generate-secrets`
+- `docker compose pull`

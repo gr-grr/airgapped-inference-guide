@@ -32,7 +32,7 @@
 | CUDA Toolkit | 13-3 |
 
 ## Inference Stack
-- **Default model:** Llama 4 Scout 109B (17B active, MoE 16 experts, FP8)
-- **Secondary model:** Qwen3-VL 235B-A22B (22B active, MoE, FP8/Q4)
+- **Primary model:** Qwen3-VL 235B-A22B at AWQ (INT4) — QuantTrio/Qwen3-VL-235B-A22B-Instruct-AWQ (121 GB)
+- **Secondary model:** Llama 4 Scout 109B (17B active, MoE 16 experts, FP8) — deferred
 - **Storage path:** `/data/models`
 - **Parallelism:** Pipeline Parallelism PP=2 (PCIe-connected GPUs)
