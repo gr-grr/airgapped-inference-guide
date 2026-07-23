@@ -124,7 +124,7 @@ services:
       - backend
 
   dcgm-exporter:
-    image: nvidia/dcgm-exporter:latest
+    image: nvidia/dcgm-exporter:4.8.3
     container_name: dcgm-exporter
     restart: unless-stopped
     logging: *logging
@@ -149,7 +149,7 @@ services:
   # Applications
   # ===========================================================================
   n8n:
-    image: n8nio/n8n:2.30.8
+    image: n8nio/n8n:2.31.5
     container_name: n8n
     restart: unless-stopped
     logging: *logging
@@ -234,7 +234,7 @@ services:
   # Observability
   # ===========================================================================
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.13.1
     container_name: prometheus
     restart: unless-stopped
     logging: *logging
@@ -259,7 +259,7 @@ services:
       - backend
 
   grafana:
-    image: grafana/grafana:11.3.0
+    image: grafana/grafana:13.0.3
     container_name: grafana
     restart: unless-stopped
     logging: *logging

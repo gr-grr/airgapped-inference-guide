@@ -22,7 +22,7 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 | 3 | NVIDIA driver and CUDA | ✅ | ⬜ |
 | 4 | Docker and NVIDIA Container Toolkit | ✅ | ⬜ |
 | 5 | Model selection and download | ✅ | ⬜ |
-| 6 | Stack setup and per-node config | ⬜ | ⬜ |
+| 6 | Stack setup and per-node config | ✅ | ⬜ |
 | 7 | Deploy the stack | ⬜ | ⬜ |
 | 8 | Verify the deployment | ⬜ | ⬜ |
 | 9 | Adding a new model later | 🔲 | 🔲 |
@@ -33,7 +33,7 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 
 ## What exists so far
 
-These artifacts exist, and Node A hardware is now provisioned through Step 5 (Step 5 complete):
+These artifacts exist, and Node A hardware is now provisioned through Step 6 (Step 6 complete):
 
 | Artifact | Purpose |
 |----------|---------|
@@ -67,7 +67,7 @@ These artifacts exist, and Node A hardware is now provisioned through Step 5 (St
    - **Decision executed:** Qwen3-VL-235B-A22B at AWQ (INT4) as primary, Llama 4 Scout FP8 as secondary
    - ✅ Qwen3-VL 235B-A22B AWQ downloaded (121 GB, 42/42 files) and checksums verified
    - Llama 4 Scout download deferred (secondary, post-Step-5)
-6. Copy stack, create data dirs, configure `.env`, run `make generate-secrets`
+6. ✅ Stack dir in place, data dirs created, `.env` configured for node1, secrets generated, `docker compose pull` completed (all 13 images latest stable)
 
 ### Per node — Steps 7-8 (deploy + verify)
 7. `docker compose up -d` → start all 13 services
