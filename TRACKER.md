@@ -24,7 +24,7 @@ All steps are **not started** on both nodes. This is a deployment blueprint — 
 | 5 | Model selection and download | ✅ | ⬜ |
 | 6 | Stack setup and per-node config | ✅ | ⬜ |
 | 7 | Deploy the stack | ✅ | ⬜ |
-| 8 | Verify the deployment | ⬜ | ⬜ |
+| 8 | Verify the deployment | ✅ | ⬜ |
 | 9 | Adding a new model later | 🔲 | 🔲 |
 | 10 | Pre-cutoff hardening | ⬜ | ⬜ |
 | 11 | Air-gap enforcement | ⬜ | ⬜ |
