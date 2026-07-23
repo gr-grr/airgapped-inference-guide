@@ -736,14 +736,17 @@ If a staged cutoff is required (e.g. during a burn-in period), enforce an outbou
 
 ## Model comparison strategy
 
-Both models are pre-downloaded and available. The `.env` file determines which one vLLM loads at runtime.
+The `.env` file determines which model vLLM loads at runtime. Download models per Step 9 before switching.
 
 **Recommended evaluation order:**
-1. Start with **Llama 4 Scout at FP8** — more headroom (~150 GB for KV cache), easier operational margin, 10M context
-2. Evaluate **Qwen3-VL 235B-A22B at FP8** — stronger reasoning, Apache 2.0 license, but tighter memory (~30-40 GB headroom)
-3. If Qwen3-VL at FP8 causes OOM under your workload, switch to **Qwen3-VL at Q4** (~140 GB headroom)
+1. **Qwen3-VL 235B-A22B at AWQ (INT4)** — primary for multi-user. Weights ~118 GB, ~152 GB headroom for KV cache. Stronger reasoning, multilingual OCR, tool use, Apache 2.0 license. Downloaded and verified on Node A (121 GB, 42 files).
+2. **Llama 4 Scout at FP8** — secondary for long-context tasks. Weights ~109 GB, ~161 GB headroom. 10M context window. Not yet downloaded — transfer via USB per Step 9 when needed.
+3. **Qwen3-VL 235B-A22B at FP8** — alternative if AWQ unavailable. Weights ~235 GB, ~35 GB headroom. Tight for multi-user — monitor for OOM under load.
 
-Switching between them requires only changing `MODEL_NAME` in `.env` and restarting the vLLM container.
+Switching models requires changing `MODEL_NAME` in `.env` and restarting vLLM:
+```bash
+docker compose up -d vllm --force-recreate
+```
 
 ---
 
