@@ -41,7 +41,7 @@ docker compose up -d
 
 1. Edit `.env` — set `NODE_NAME` to your server's hostname.
 2. Point `MODEL_DIR` to your model weights path (`/data/stack/inference-cluster-stack/data/models`).
-3. Choose your model in `MODEL_NAME` (`/models/llama-4-scout` or `/models/qwen3-vl-235b`).
+3. Choose your model in `MODEL_NAME` (`/models/qwen3-vl-30b-a3b-awq`).
 4. Pre-pull all images while still online:
    ```bash
    docker compose pull
@@ -55,3 +55,44 @@ docker compose up -d
 - Grafana default login: admin/admin (change immediately).
 - Import Grafana dashboard ID 25261 for DCGM GPU metrics.
 - `VLLM_NO_USAGE_STATS=1` and `DO_NOT_TRACK=1` disable telemetry.
+
+## Configuration Rationale (July 2026)
+
+### Why
+
+The original config (Qwen3-VL-235B-A22B AWQ, max-num-seqs=80, 8K context) hit 90% GPU
+utilization under load. Target requirements grew to 250 concurrent users with 46-64K
+context windows per request, which the 235B model cannot support on 2× H200 141GB —
+KV cache alone would need ~750 GB.
+
+### What we changed
+
+| Change | From | To |
+|---|---|---|
+| Model | Qwen3-VL-235B-A22B AWQ (118 GB) | Qwen3-VL-30B-A3B AWQ (17 GB) |
+| Context length | 8,192 | 65,536 |
+| Max concurrent sequences | 80 | 250 |
+| GPU memory utilization | 0.90 | 0.95 |
+| KV cache dtype | BF16 (2B/elem) | FP8 (1B/elem) |
+| CPU swap space | none | 350 GB |
+| Scheduler policy | default | guaranteed |
+
+### Benefits gained
+
+- **17× less weight memory per GPU** (~59 GB → ~3.5 GB) → frees ~55 GB for KV cache
+- **8× longer context** (8K → 64K) supports the 46K single-request workflow
+- **3× more concurrent slots** (80 → 250) with 84 fitting entirely on-GPU
+- ~126 GB per GPU available for KV cache at FP8 precision
+- Remaining 166 sequences backed by CPU swap over PCIe (16-token block granularity)
+- Native 256K context — no rope scaling needed for 64K
+
+### What we lost
+
+- **Model capability**: 235B → 30B is a significant reduction in total parameters
+  (235B total / 22B active → 30.5B total / 3.3B active). Benchmarks show this is
+  still strong for multilingual OCR, tool use, and reasoning, but quality on the
+  hardest tasks (long-tail knowledge, complex multi-step reasoning) will be lower.
+- **No video support** (`--limit-mm-per-prompt.video 0`) to save memory
+- **Swap-dependent throughput**: active decode batch limited to ~84 sequences;
+  remaining 166 incur PCIe block migration when scheduled
+- **FP8 KV cache** has slightly lower accuracy than BF16 (typically <0.5% on perplexity)
